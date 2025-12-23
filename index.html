@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DebatePro Tournament - Master Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        :root { --primary: #10b981; --accent: #f59e0b; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; color: #0f172a; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .glass-card { background: white; border: 1px solid #e2e8f0; border-radius: 1.5rem; transition: all 0.3s ease; }
+        .glass-card:hover { border-color: var(--primary); box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); }
+        .tab-btn.active { color: var(--primary); border-bottom: 3px solid var(--primary); opacity: 1; }
+        .match-badge-pro { background: #ecfdf5; color: #059669; border: 1px solid #10b981; }
+        .match-badge-opp { background: #fef2f2; color: #dc2626; border: 1px solid #f87171; }
+        @keyframes pulse-timer { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        .timer-active { animation: pulse-timer 2s infinite; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Navigazione Superiore -->
+    <nav class="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-slate-900 to-slate-700 p-2.5 rounded-xl text-white shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                </div>
+                <h1 class="text-2xl font-black tracking-tighter italic">DEBATE<span class="text-[#10b981]">PRO</span> <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full not-italic text-slate-500 ml-1 border">v3.0</span></h1>
+            </div>
+            <div class="flex gap-4 md:gap-8 overflow-x-auto pb-1 scrollbar-hide">
+                <button onclick="switchTab('dashboard')" class="tab-btn active px-1 py-2 font-bold text-slate-400 whitespace-nowrap" id="btn-dashboard">Dashboard</button>
+                <button onclick="switchTab('tournament')" class="tab-btn px-1 py-2 font-bold text-slate-400 whitespace-nowrap" id="btn-tournament">Torneo</button>
+                <button onclick="switchTab('teams')" class="tab-btn px-1 py-2 font-bold text-slate-400 whitespace-nowrap" id="btn-teams">Squadre</button>
+                <button onclick="switchTab('rankings')" class="tab-btn px-1 py-2 font-bold text-slate-400 whitespace-nowrap" id="btn-rankings">Classifica</button>
+                <button onclick="switchTab('settings')" class="tab-btn px-1 py-2 font-bold text-slate-400 whitespace-nowrap" id="btn-settings">Settings</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto p-6">
+        
+        <!-- DASHBOARD: Focus sul Match Attuale -->
+        <section id="tab-dashboard" class="tab-content active">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-card p-10 bg-gradient-to-br from-white to-slate-50 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 p-8 opacity-5">
+                            <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2z"/></svg>
+                        </div>
+                        <h2 class="text-xs font-black mb-8 text-slate-400 uppercase tracking-[0.2em]">In Diretta / Prossimo Match</h2>
+                        <div id="active-debate-card" class="text-center py-6"></div>
+                    </div>
+                </div>
+                <div class="space-y-6">
+                    <div class="glass-card p-8">
+                        <h2 class="text-xs font-black mb-6 text-slate-400 uppercase tracking-widest">Stato Torneo</h2>
+                        <div class="space-y-4" id="tournament-stats">
+                            <!-- Inserito via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TORNEO: Configurazione Mozioni e Match -->
+        <section id="tab-tournament" class="tab-content">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="glass-card p-8">
+                    <h3 class="text-xl font-black mb-6">1. Configura Mozioni</h3>
+                    <p class="text-sm text-slate-500 mb-4">Inserisci gli argomenti che verranno trattati nel torneo (uno per riga).</p>
+                    <textarea id="tournament-motions" class="w-full h-48 p-4 bg-slate-50 border rounded-2xl font-medium focus:ring-2 ring-emerald-500 outline-none" placeholder="Esempio:&#10;Questa assemblea legalizzerebbe l'IA nelle scuole&#10;I social media fanno più male che bene"></textarea>
+                    <button onclick="generateTournament()" class="w-full mt-6 bg-slate-900 text-white py-4 rounded-xl font-black hover:bg-emerald-600 transition-colors shadow-lg shadow-slate-200">GENERA SCHEMA TORNEO</button>
+                </div>
+                <div class="glass-card p-8">
+                    <h3 class="text-xl font-black mb-6">2. Match Programmati</h3>
+                    <div id="bracket-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                        <div class="text-center py-12 text-slate-400 italic">Configura le mozioni e clicca genera per vedere i match.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SQUADRE -->
+        <section id="tab-teams" class="tab-content">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900">Squadre</h2>
+                    <p class="text-slate-500 font-medium">Gestisci i partecipanti del torneo</p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="generateRandomTeam()" class="bg-amber-100 text-amber-700 border border-amber-200 px-6 py-3 rounded-xl font-bold hover:bg-amber-200 transition-all">Genera Casuale</button>
+                    <button onclick="openTeamModal()" class="bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-emerald-100 hover:bg-emerald-600">Nuova Squadra</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="teams-grid"></div>
+        </section>
+
+        <!-- CLASSIFICA -->
+        <section id="tab-rankings" class="tab-content">
+            <div class="max-w-3xl mx-auto glass-card p-10">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-black text-slate-900">Hall of Fame</h2>
+                    <p class="text-slate-500 font-medium">Classifica basata sulle vittorie (3pt) e partecipazione (1pt)</p>
+                </div>
+                <div class="space-y-4" id="rankings-list"></div>
+            </div>
+        </section>
+
+        <!-- IMPOSTAZIONI -->
+        <section id="tab-settings" class="tab-content">
+            <div class="max-w-xl mx-auto glass-card p-10">
+                <h2 class="text-2xl font-black mb-8 text-center">Configurazione Round</h2>
+                <div class="space-y-6">
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Discorso Standard (min)</label><input type="number" id="set-speech" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold"></div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Arringa Capitano (min)</label><input type="number" id="set-captain" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold"></div>
+                    <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Replica Finale (min)</label><input type="number" id="set-reply" class="w-full p-4 bg-slate-50 border rounded-2xl font-bold"></div>
+                    <button onclick="saveSettings()" class="w-full bg-emerald-500 text-white py-4 rounded-2xl font-black shadow-lg">SALVA MODIFICHE</button>
+                    <div class="pt-8 border-t mt-8">
+                        <button onclick="clearAllData()" class="w-full border-2 border-red-100 text-red-500 py-4 rounded-2xl font-bold hover:bg-red-50">RESETTA INTERO TORNEO</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODALI -->
+    <div id="modal-team" class="fixed inset-0 bg-slate-900/60 hidden z-[200] flex items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white p-10 rounded-[2rem] w-full max-w-2xl shadow-2xl">
+            <h3 id="modal-team-title" class="text-2xl font-black mb-8">Dati Squadra</h3>
+            <input type="hidden" id="edit-team-id">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Nome della Squadra</label>
+                    <input type="text" id="in-team-name" class="w-full p-4 bg-slate-50 border rounded-xl font-bold outline-none focus:border-emerald-500">
+                </div>
+                <div><label class="block text-[10px] font-black text-emerald-600 uppercase mb-2">Capitano</label><input type="text" id="in-team-captain" class="w-full p-4 bg-slate-50 border rounded-xl font-semibold"></div>
+                <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Speaker 2</label><input type="text" id="in-team-s2" class="w-full p-4 bg-slate-50 border rounded-xl font-semibold"></div>
+                <div><label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Speaker 3</label><input type="text" id="in-team-s3" class="w-full p-4 bg-slate-50 border rounded-xl font-semibold"></div>
+                <div><label class="block text-[10px] font-black text-amber-500 uppercase mb-2">Osservatori</label><input type="text" id="in-team-observers" class="w-full p-4 bg-slate-50 border rounded-xl font-semibold"></div>
+            </div>
+            <div class="flex gap-4 mt-10">
+                <button onclick="saveTeam()" class="flex-1 bg-emerald-500 text-white py-5 rounded-2xl font-black uppercase tracking-widest shadow-lg hover:bg-emerald-600">SALVA SQUADRA</button>
+                <button onclick="hideModal('modal-team')" class="px-8 py-5 bg-slate-100 rounded-2xl font-bold text-slate-400">CHIUDI</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VOTO E CHIUSURA -->
+    <div id="modal-vote" class="fixed inset-0 bg-slate-900/60 hidden z-[300] flex items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white p-10 rounded-[2.5rem] w-full max-w-md text-center shadow-2xl">
+            <div class="w-20 h-20 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">🏆</div>
+            <h3 class="text-2xl font-black mb-2 uppercase">Match Concluso</h3>
+            <p class="text-slate-500 mb-10 text-sm">Verdetto della giuria per questo round:</p>
+            <div class="grid grid-cols-1 gap-4" id="vote-options"></div>
+            <button onclick="hideModal('modal-vote')" class="mt-8 text-xs text-slate-400 font-black uppercase tracking-widest">Annulla Verdetto</button>
+        </div>
+    </div>
+
+    <!-- FULLSCREEN TIMER VIEW -->
+    <div id="debate-view" class="fixed inset-0 bg-white z-[100] hidden flex flex-col">
+        <div class="p-6 border-b flex justify-between items-center bg-slate-900 text-white">
+            <button onclick="closeDebateView()" class="p-3 bg-slate-800 rounded-2xl hover:bg-slate-700 transition-colors"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+            <div class="text-center px-8">
+                <div id="view-motion" class="font-black uppercase text-xs tracking-[0.3em] text-emerald-400 mb-1">MOZIONE</div>
+                <div id="view-matchup" class="text-sm font-bold opacity-80 uppercase italic">SQUADRA A vs SQUADRA B</div>
+            </div>
+            <div class="w-12"></div>
+        </div>
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-4 overflow-hidden">
+            <div class="bg-slate-50 border-r p-8 space-y-4 overflow-y-auto" id="speaker-list"></div>
+            <div class="lg:col-span-3 flex flex-col p-8 bg-white justify-center items-center">
+                <div id="current-speaker" class="mb-10 text-xs font-black text-emerald-600 bg-emerald-50 px-8 py-3 rounded-full uppercase tracking-widest border-2 border-emerald-100">Pronto per iniziare</div>
+                <div id="timer-box" class="relative group p-16 lg:p-24 border-[8px] border-slate-50 rounded-[6rem] flex flex-col items-center transition-all duration-500">
+                    <div id="timer-display" class="text-9xl lg:text-[14rem] font-black text-slate-900 tabular-nums leading-none tracking-tighter">00:00</div>
+                    <div id="timer-status" class="mt-8 font-black text-slate-300 uppercase tracking-[0.4em] text-[10px]">IN ATTESA</div>
+                </div>
+                <div class="mt-20 flex items-center gap-12">
+                    <button onclick="resetTimer()" class="w-16 h-16 text-slate-200 hover:text-slate-900 transition-all"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></button>
+                    <button id="toggle-btn" onclick="toggleTimer()" class="w-32 h-32 bg-emerald-500 text-white rounded-[3rem] flex items-center justify-center shadow-2xl shadow-emerald-200 hover:scale-105 active:scale-95 transition-all">
+                        <svg id="play-icon" width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        <svg id="pause-icon" class="hidden" width="56" height="56" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    </button>
+                    <div class="w-16 h-16"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="bell-1" src="https://assets.mixkit.co/active_storage/sfx/2568/2568-preview.mp3"></audio>
+    <audio id="bell-2" src="https://assets.mixkit.co/active_storage/sfx/2566/2566-preview.mp3"></audio>
+
+    <script>
+        // --- LOGICA DATI ---
+        let state = {
+            teams: JSON.parse(localStorage.getItem('dp_v3_teams')) || [],
+            settings: JSON.parse(localStorage.getItem('dp_v3_settings')) || { speech: 8, captain: 10, reply: 4 },
+            bracket: JSON.parse(localStorage.getItem('dp_v3_bracket')) || [],
+            archive: JSON.parse(localStorage.getItem('dp_v3_archive')) || [],
+            currentIndex: parseInt(localStorage.getItem('dp_v3_index')) || 0,
+            timer: { timeLeft: 0, isRunning: false, interval: null, role: null, total: 0 }
+        };
+
+        const randomNames = ["I Logici", "I Sofisti", "I Giganti", "I Retori", "L'Accademia", "Il Circolo", "I Maestri", "I Filosofi", "Gli Oratori", "I Pensatori"];
+        const randomAdjectives = ["Galattici", "Inarrestabili", "Supremi", "di Atene", "Illuminati", "del Futuro", "Senza Macchia", "di Platone", "Diamanti", "di Fuoco"];
+        const fakePeople = ["Marco", "Sofia", "Leonardo", "Giulia", "Elena", "Davide", "Chiara", "Simone", "Beatrice", "Matteo", "Alice", "Francesco"];
+
+        function save() {
+            localStorage.setItem('dp_v3_teams', JSON.stringify(state.teams));
+            localStorage.setItem('dp_v3_settings', JSON.stringify(state.settings));
+            localStorage.setItem('dp_v3_bracket', JSON.stringify(state.bracket));
+            localStorage.setItem('dp_v3_archive', JSON.stringify(state.archive));
+            localStorage.setItem('dp_v3_index', state.currentIndex);
+            updateGlobalStats();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`btn-${tab}`).classList.add('active');
+            if(tab === 'teams') renderTeams();
+            if(tab === 'dashboard') renderDashboard();
+            if(tab === 'tournament') renderBracket();
+            if(tab === 'rankings') renderRankings();
+        }
+
+        function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        // --- TEAM MANAGEMENT ---
+        function generateRandomTeam() {
+            const name = randomNames[Math.floor(Math.random()*randomNames.length)] + " " + randomAdjectives[Math.floor(Math.random()*randomAdjectives.length)];
+            const members = Array.from({length: 4}, () => fakePeople[Math.floor(Math.random()*fakePeople.length)]);
+            
+            document.getElementById('in-team-name').value = name;
+            document.getElementById('in-team-captain').value = members[0];
+            document.getElementById('in-team-s2').value = members[1];
+            document.getElementById('in-team-s3').value = members[2];
+            document.getElementById('in-team-observers').value = members[3];
+            showModal('modal-team');
+        }
+
+        function saveTeam() {
+            const id = document.getElementById('edit-team-id').value;
+            const t = {
+                id: id || Date.now().toString(),
+                name: document.getElementById('in-team-name').value.trim(),
+                captain: document.getElementById('in-team-captain').value,
+                s2: document.getElementById('in-team-s2').value,
+                s3: document.getElementById('in-team-s3').value,
+                observers: document.getElementById('in-team-observers').value
+            };
+            if(!t.name) return;
+            if(id) state.teams = state.teams.map(x => x.id === id ? t : x);
+            else state.teams.push(t);
+            save(); hideModal('modal-team'); renderTeams();
+        }
+
+        function renderTeams() {
+            const g = document.getElementById('teams-grid');
+            g.innerHTML = state.teams.map(t => `
+                <div class="glass-card p-6 border-l-8 border-l-slate-900 group">
+                    <div class="flex justify-between items-start mb-4">
+                        <h4 class="font-black text-slate-900 uppercase tracking-tight">${t.name}</h4>
+                        <button onclick="deleteTeam('${t.id}')" class="opacity-0 group-hover:opacity-100 text-red-400 text-[10px] font-black uppercase">Elimina</button>
+                    </div>
+                    <div class="text-[10px] space-y-2 font-bold">
+                        <div class="text-emerald-600 uppercase tracking-widest">Capitano: ${t.captain}</div>
+                        <div class="text-slate-400">Team: ${t.s2}, ${t.s3}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteTeam(id) {
+            state.teams = state.teams.filter(t => t.id !== id);
+            save(); renderTeams();
+        }
+
+        // --- TOURNAMENT LOGIC ---
+        function generateTournament() {
+            const motions = document.getElementById('tournament-motions').value.split('\n').filter(l => l.trim() !== "");
+            if(state.teams.length < 2) return alert("Crea almeno 2 squadre!");
+            if(motions.length === 0) return alert("Inserisci almeno una mozione!");
+
+            let tempTeams = [...state.teams].sort(() => Math.random() - 0.5);
+            let matches = [];
+
+            // Creazione match casuali
+            for(let i = 0; i < motions.length; i++) {
+                // Prende due squadre a caso o cicla se sono poche
+                const t1 = tempTeams[i % tempTeams.length];
+                const t2 = tempTeams[(i + 1) % tempTeams.length];
+                
+                matches.push({
+                    id: Date.now() + i,
+                    motion: motions[i],
+                    pro: t1,
+                    opp: t2,
+                    winner: null,
+                    status: 'pending'
+                });
+            }
+
+            state.bracket = matches;
+            state.currentIndex = 0;
+            save();
+            renderBracket();
+            renderDashboard();
+            switchTab('tournament');
+        }
+
+        function renderBracket() {
+            const list = document.getElementById('bracket-list');
+            if(state.bracket.length === 0) return;
+
+            list.innerHTML = state.bracket.map((m, i) => `
+                <div class="p-5 border-2 ${i === state.currentIndex ? 'border-emerald-500 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-2xl transition-all">
+                    <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Round ${i+1} ${m.status === 'completed' ? '✓' : ''}</div>
+                    <div class="text-sm font-black mb-4 leading-tight">"${m.motion}"</div>
+                    <div class="flex items-center gap-3 justify-between">
+                        <div class="flex-1 px-3 py-2 rounded-lg match-badge-pro text-[10px] font-black uppercase text-center">${m.pro.name}</div>
+                        <div class="text-[10px] font-black text-slate-300 italic">VS</div>
+                        <div class="flex-1 px-3 py-2 rounded-lg match-badge-opp text-[10px] font-black uppercase text-center">${m.opp.name}</div>
+                    </div>
+                    ${m.winner ? `<div class="mt-3 text-center text-[10px] font-black text-emerald-600 bg-white border py-1 rounded-full uppercase">VINCITORE: ${state.teams.find(t=>t.id===m.winner).name}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // --- DASHBOARD ---
+        function renderDashboard() {
+            const card = document.getElementById('active-debate-card');
+            const current = state.bracket[state.currentIndex];
+
+            if(!current) {
+                card.innerHTML = `<p class="text-slate-400 font-bold">Nessun torneo attivo. Vai nella tab Torneo per iniziare.</p>`;
+                return;
+            }
+
+            if(current.status === 'completed') {
+                card.innerHTML = `
+                    <div class="py-10">
+                        <div class="text-emerald-500 font-black text-5xl mb-4">✓</div>
+                        <h3 class="text-xl font-black uppercase mb-2">Round Concluso</h3>
+                        <p class="text-slate-400 mb-8">Tutti i match programmati sono finiti o puoi passare al prossimo.</p>
+                        <button onclick="nextRound()" class="bg-slate-900 text-white px-10 py-4 rounded-xl font-black">PROSSIMO MATCH</button>
+                    </div>`;
+            } else {
+                card.innerHTML = `
+                    <div class="space-y-6">
+                        <div class="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12">
+                            <div class="text-center">
+                                <div class="match-badge-pro px-4 py-1 rounded-full text-[10px] font-black mb-2 uppercase">SQUADRA PRO</div>
+                                <div class="text-2xl font-black uppercase tracking-tighter text-slate-900">${current.pro.name}</div>
+                            </div>
+                            <div class="text-4xl font-black text-slate-200 italic">VS</div>
+                            <div class="text-center">
+                                <div class="match-badge-opp px-4 py-1 rounded-full text-[10px] font-black mb-2 uppercase">SQUADRA CONTRO</div>
+                                <div class="text-2xl font-black uppercase tracking-tighter text-slate-900">${current.opp.name}</div>
+                            </div>
+                        </div>
+                        <p class="text-slate-500 font-bold italic text-lg max-w-lg mx-auto border-y py-4 border-slate-100">"${current.motion}"</p>
+                        <div class="pt-6 flex justify-center gap-4">
+                            <button onclick="launchTimer()" class="bg-emerald-500 text-white px-12 py-5 rounded-2xl font-black shadow-xl hover:scale-105 transition-all uppercase tracking-widest text-sm">AVVIA SESSIONE</button>
+                            <button onclick="askForWinner()" class="bg-slate-100 text-slate-400 px-6 py-5 rounded-2xl font-black text-xs uppercase">Chiudi Round</button>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function nextRound() {
+            if(state.currentIndex < state.bracket.length - 1) {
+                state.currentIndex++;
+                save(); renderDashboard(); renderBracket();
+            } else {
+                alert("Torneo completato!");
+            }
+        }
+
+        // --- TIMER ---
+        function launchTimer() {
+            const m = state.bracket[state.currentIndex];
+            document.getElementById('debate-view').classList.remove('hidden');
+            document.getElementById('view-motion').innerText = m.motion;
+            document.getElementById('view-matchup').innerText = `${m.pro.name} vs ${m.opp.name}`;
+            
+            const roles = [
+                { l: "CAPITANO PRO", n: m.pro.captain },
+                { l: "CAPITANO CONTRO", n: m.opp.captain },
+                { l: "SPEAKER 2 PRO", n: m.pro.s2 },
+                { l: "SPEAKER 2 CONTRO", n: m.opp.s2 },
+                { l: "SPEAKER 3 PRO", n: m.pro.s3 },
+                { l: "SPEAKER 3 CONTRO", n: m.opp.s3 },
+                { l: "REPLICA CONTRO", n: m.opp.captain },
+                { l: "REPLICA PRO", n: m.pro.captain }
+            ];
+
+            document.getElementById('speaker-list').innerHTML = roles.map((x, i) => `
+                <button onclick="selectSpeaker('${x.l}', ${i})" class="w-full p-5 border-2 border-transparent bg-white rounded-2xl text-left hover:border-emerald-500 shadow-sm speaker-btn group transition-all" id="spk-${i}">
+                    <div class="text-[9px] font-black text-slate-400 group-hover:text-emerald-500 uppercase tracking-widest mb-1">${x.l}</div>
+                    <div class="text-sm font-bold truncate text-slate-900">${x.n || '---'}</div>
+                </button>
+            `).join('');
+            resetTimer();
+        }
+
+        function selectSpeaker(label, idx) {
+            if(state.timer.isRunning) toggleTimer();
+            state.timer.role = label;
+            document.getElementById('current-speaker').innerText = label;
+            document.querySelectorAll('.speaker-btn').forEach(b => b.classList.remove('border-emerald-500', 'bg-emerald-50'));
+            document.getElementById(`spk-${idx}`).classList.add('border-emerald-500', 'bg-emerald-50');
+
+            if(label.includes('CAPITANO')) state.timer.total = state.settings.captain * 60;
+            else if(label.includes('REPLICA')) state.timer.total = state.settings.reply * 60;
+            else state.timer.total = state.settings.speech * 60;
+
+            state.timer.timeLeft = state.timer.total;
+            updateUI();
+        }
+
+        function toggleTimer() {
+            if(!state.timer.role) return alert("Scegli uno speaker!");
+            state.timer.isRunning = !state.timer.isRunning;
+            document.getElementById('play-icon').classList.toggle('hidden', state.timer.isRunning);
+            document.getElementById('pause-icon').classList.toggle('hidden', !state.timer.isRunning);
+            document.getElementById('timer-box').classList.toggle('timer-active', state.timer.isRunning);
+
+            if(state.timer.isRunning) {
+                state.timer.interval = setInterval(() => {
+                    state.timer.timeLeft--;
+                    updateUI();
+                    if(state.timer.timeLeft === 60 || state.timer.timeLeft === (state.timer.total - 60)) document.getElementById('bell-1').play();
+                    if(state.timer.timeLeft === 0) document.getElementById('bell-2').play();
+                }, 1000);
+            } else {
+                clearInterval(state.timer.interval);
+            }
+        }
+
+        function updateUI() {
+            const abs = Math.abs(state.timer.timeLeft);
+            const m = Math.floor(abs/60).toString().padStart(2,'0');
+            const s = (abs%60).toString().padStart(2,'0');
+            document.getElementById('timer-display').innerText = (state.timer.timeLeft < 0 ? '-' : '') + `${m}:${s}`;
+            document.getElementById('timer-status').innerText = state.timer.timeLeft < 0 ? "OVERTIME" : (state.timer.isRunning ? "DIBATTITO IN CORSO" : "IN PAUSA");
+        }
+
+        function resetTimer() {
+            if(state.timer.isRunning) toggleTimer();
+            state.timer.timeLeft = state.timer.total || 0;
+            updateUI();
+        }
+
+        function closeDebateView() {
+            if(state.timer.isRunning) toggleTimer();
+            document.getElementById('debate-view').classList.add('hidden');
+        }
+
+        // --- RANKINGS & VOTE ---
+        function askForWinner() {
+            const m = state.bracket[state.currentIndex];
+            const opts = document.getElementById('vote-options');
+            opts.innerHTML = `
+                <button onclick="finalizeMatch('${m.pro.id}')" class="p-5 bg-emerald-50 text-emerald-700 border-2 border-emerald-200 rounded-2xl font-black uppercase hover:bg-emerald-100">PRO: ${m.pro.name}</button>
+                <button onclick="finalizeMatch('${m.opp.id}')" class="p-5 bg-red-50 text-red-700 border-2 border-red-200 rounded-2xl font-black uppercase hover:bg-red-100">CONTRO: ${m.opp.name}</button>
+            `;
+            showModal('modal-vote');
+        }
+
+        function finalizeMatch(winnerId) {
+            state.bracket[state.currentIndex].winner = winnerId;
+            state.bracket[state.currentIndex].status = 'completed';
+            
+            // Archiviazione per classifica storica
+            state.archive.push({...state.bracket[state.currentIndex]});
+            
+            save(); hideModal('modal-vote'); renderDashboard(); renderBracket();
+        }
+
+        function renderRankings() {
+            const list = document.getElementById('rankings-list');
+            const stats = state.teams.map(t => {
+                const wins = state.archive.filter(a => a.winner === t.id).length;
+                const matches = state.archive.filter(a => a.pro.id === t.id || a.opp.id === t.id).length;
+                return { ...t, wins, points: (wins * 3) + (matches * 1) };
+            }).sort((a,b) => b.points - a.points);
+
+            list.innerHTML = stats.map((s, i) => `
+                <div class="flex items-center gap-6 p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div class="w-14 h-14 rounded-2xl bg-white border shadow-sm flex items-center justify-center font-black text-xl">${i+1}</div>
+                    <div class="flex-1">
+                        <div class="text-lg font-black uppercase tracking-tight">${s.name}</div>
+                        <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${s.wins} Vittorie / ${s.points} Punti</div>
+                    </div>
+                    <div class="flex gap-1">
+                        ${Array.from({length: Math.min(s.wins, 5)}, () => `<span class="text-amber-400 text-xl">★</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateGlobalStats() {
+            const stats = document.getElementById('tournament-stats');
+            const total = state.bracket.length;
+            const completed = state.bracket.filter(b => b.status === 'completed').length;
+            stats.innerHTML = `
+                <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 flex justify-between">
+                    <span class="text-[10px] font-black text-slate-400 uppercase">Squadre</span>
+                    <span class="font-black text-slate-900">${state.teams.length}</span>
+                </div>
+                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex justify-between">
+                    <span class="text-[10px] font-black text-emerald-600 uppercase">Progresso Match</span>
+                    <span class="font-black text-emerald-900">${completed} / ${total}</span>
+                </div>
+            `;
+        }
+
+        function saveSettings() {
+            state.settings = {
+                speech: parseInt(document.getElementById('set-speech').value),
+                captain: parseInt(document.getElementById('set-captain').value),
+                reply: parseInt(document.getElementById('set-reply').value)
+            };
+            save(); alert("Impostazioni aggiornate!");
+        }
+
+        function clearAllData() {
+            if(confirm("Vuoi resettare tutto? Questa azione è irreversibile.")) {
+                localStorage.clear(); location.reload();
+            }
+        }
+
+        window.onload = () => {
+            document.getElementById('set-speech').value = state.settings.speech;
+            document.getElementById('set-captain').value = state.settings.captain;
+            document.getElementById('set-reply').value = state.settings.reply;
+            renderTeams(); renderDashboard(); renderBracket(); updateGlobalStats();
+        };
+    </script>
+</body>
+</html>
